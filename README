@@ -1,0 +1,15 @@
+Bogo ANTIVIRUS 2012
+-------------------
+
+worlds fastest placebo antivirus software.
+
+
+run install.vbs
+this will create the illusion in the security center that a working AV app
+is installed.
+
+put bmp generated from the psd file (splash.bmp) and exe file in some directory
+and add a link to the exe in your uses autostart entry in the startmenu.
+
+now he gets greeted by the splash screen for 6 seconds every login and thinks
+he is safe.
