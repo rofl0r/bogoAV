@@ -1,0 +1,51 @@
+http://remstate.com/2008/06/09/integrating-clamwin-with-the-windows-securitycenter/
+
+I’m going to take a little diversion, because it really bugs me that ClamAV doesn’t register itself with the Security Center. I’m sure I’m not the only one who finds this somewhat obnoxious. Furthermore, I have yet to find a clear description of how to handle all this WMI mumbo-jumbo, but it’s quite straightforward — and I’m annoyed that nobody else has put forth a direct, eloquent explanation. I’ve finally read between the lines enough to figure it all out, so please enjoy the fruits of my labor. Since I’m on the topic, I’ll also be discussing the integration of ClamWin with SteadyState — but I’ll discuss that in detail in a later post. :)
+
+Windows XP SP2 introduced the “Windows Security Center.” Essentially, it’s a centralized/cross-product way to nag at a user if AntiVirus software is not installed, enabled, or up-to-date (3rd party firewalls are supported, too, but Windows XP’s built-in firewall works just fine as far as Security Center is concerned). If you install ClamWin AV, windows keeps nagging at you. Why? Because ClamWin doesn’t go through the motions to register with Security Center.
+
+So, how does one register with Security Center? Well, through Windows Management Instrumentation (WMI). Really super not obvious. WMI is almost like another (object-oriented, event-enabled) registry of sorts; another nightmare of barely-structured, barely-documented config, control, and status data points. All we really care about is that the Security Center looks for instances of certain classes — specifically, the AntiVirusProduct class. You can take a look at the definition of this class by opening up its MOF file at %SystemRoot%\System32\wbem\wscenter.mof.
+
+Once we create an instance of that class in WMI, Security Center will discover the object and take appropriate action based on the object’s properties. The question then becomes, how do we create that object? The following code outlines the gist of it (you’ll need to reference the System.Management DLL):
+
+using System.Management;
+/* … */
+ManagementClass avp = new ManagementClass(@”\\.\root\SecurityCenter:AntiVirusProduct”);
+ManagementObject status = avp.CreateInstance();
+status.SetPropertyValue(”displayName”, “My AV product”);
+/* … */
+m_status.Put();
+
+Given the appropriate set of hard-coded values, it’s possible to just make the Security Center message about not having an AV product go away. With a little more creativity, we might be able to actually get some real integration going on… maybe not true real-time scanning, but at least integration with regard to engine and signature updates. I’m working on a Windows service that will handle integration — I’ll post it up if I’m successful. On the other hand, since ClamAV already provides that information in a popup balloon, it really isn’t necessary to duplicate the effort… really, we just need to whine if ClamWin stops running.
+
+You can always hard-code the object yourself — you don’t even need to write code to do it. Just run wbemtest from the “run” dialog or command prompt, and do the following (all indicated values should be typed/interpreted without the quotes):
+
+Click “Connect…”
+Replace “root\default” with “root\SecurityCenter”
+Click “Connect”
+Click “Enum Instances…”
+Type “AntiVirusProduct” in the “Enter superclass name” text box
+Click “OK”
+Click “Add”
+Find the “instanceGuid” property in the “Properties” list
+Double-click it
+Select the “Not NULL” radio button
+Fill in a GUID (like “{01A8E0DF-9222-47FE-BD81-4C55A712D280}”) in the “Value” text area
+Click “Save Property”
+Find the “displayName” property in the “Properties” list
+Double-click it
+Select the “Not NULL” radio button
+Fill in a display name (like “ClamWin”) in the “Value” text area
+Click “Save Property”
+Find the “productUptoDate” property in the “Properties” list
+Double-click it
+Select the “Not NULL” radio button
+Put “TRUE” in the “Value” text area
+Click “Save Property”
+Find the “onAccessScanningEnabled” property in the “Properties” list
+Double-click it
+Select the “Not NULL” radio button
+Put “TRUE” in the “Value” text area
+Click “Save Property”
+Click “Save Object”
+The Security Center will now claim that you have an AV product in place and operational. Alternately, you could just run a VBScript file that does all the above for you. I run this script right after ClamWin is installed, to make SecurityCenter shut up.
